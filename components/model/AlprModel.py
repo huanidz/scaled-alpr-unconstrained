@@ -38,8 +38,8 @@ class AlprModel(nn.Module):
             self.res_block_8 = AlprResBlock(in_c=128, out_c=128, ksize=3, stride=1)
             self.res_block_9 = AlprResBlock(in_c=128, out_c=128, ksize=3, stride=1)
             
-            self.out_probs = ConvBlock(in_c=128, out_c=2, ksize=3, stride=1, padding=0, is_act=False)
-            self.out_bbox = ConvBlock(in_c=128, out_c=6, ksize=3, stride=1, padding=0, is_act=False)
+            self.out_probs = ConvBlock(in_c=128, out_c=2, ksize=3, stride=1, padding=1, is_act=False)
+            self.out_bbox = ConvBlock(in_c=128, out_c=6, ksize=3, stride=1, padding=1, is_act=False)
             
         
     def forward(self, x):

@@ -47,21 +47,24 @@ class AlprLoss(nn.Module):
         
         B, C, H, W = target.shape
         
-        obj_prob_predict = predict[:, 0] # BxHxW
-        obj_prob_target = target[:, 0] # BxHxW
+        obj_prob_predict = predict[:, 0].unsqueeze(1) # Bx1xHxW
+        obj_prob_target = target[:, 0].unsqueeze(1) # Bx1xHxW
         
-        non_obj_prob_predict = 1 - predict[:, 0] # BxHxW
-        non_obj_prob_target = target[:, 0] # BxHxW
+        non_obj_prob_predict = predict[:, 1].unsqueeze(1) # Bx1xHxW
+        non_obj_prob_target = 1.0 - target[:, 0].unsqueeze(1) # Bx1xHxW
 
         affine_predict = predict[:, 2:] # Bx6xHxW
-        pts_true = target[:, 1:] # ??
+        pts_true = target[:, 1:] # Bx8xHxW
         
-        affinex = torch.stack([torch.maximum(affine_predict[:, 0], 0.), affine_predict[:, 1], affine_predict[:, 2]], dim=1)
-        affiney = torch.stack([affine_predict[:, 3], torch.maximum(affine_predict[:, 4], 0),affine_predict[:, 5]], dim=1)
-                
-        v = torch.Tensor([0.5])
-        base = (-v).expand(B, H, W, 4).reshape(B, H, W, 4, 3).permute(0, 3, 1, 2)
-        pts = torch.zeros_like(base)
+        
+        affinex = torch.stack([torch.maximum(affine_predict[:, 0], torch.zeros_like(affine_predict[:, 0])), affine_predict[:, 1], affine_predict[:, 2]], dim=1)
+        
+        affiney = torch.stack([affine_predict[:, 3], torch.maximum(affine_predict[:, 4], torch.zeros_like(affine_predict[:, 4])),affine_predict[:, 5]], dim=1)
+        
+        v = 0.5
+        base = torch.tensor([[[[-v, -v, 1., v, -v, 1., v, v, 1., -v, v, 1.]]]], device=predict.device)
+        base = base.repeat(B, H, W, 1)
+        pts = torch.zeros(B, 0, H, W, device=predict.device)
         
         for i in range(0, 12, 3):
             row = base[..., i:(i+3)]
@@ -73,7 +76,13 @@ class AlprLoss(nn.Module):
             
         flags = obj_prob_target.reshape(B, 1, H, W)
         
-        loss = self.l1_loss(pts_true*flags, pts*flags) + self.log_loss(obj_prob_predict, obj_prob_target) + self.log_loss(non_obj_prob_predict, non_obj_prob_target)
+        l1_loss = self.l1_loss(pts*flags, pts_true*flags)
+        obj_log_loss = self.log_loss(obj_prob_predict, obj_prob_target)
+        non_obj_log_loss = self.log_loss(non_obj_prob_predict, non_obj_prob_target)
+        
+        loss = l1_loss + obj_log_loss + non_obj_log_loss        
+        loss = torch.mean(loss)
+        
         return loss        
         
     
