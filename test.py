@@ -11,13 +11,22 @@ from components.losses.loss import AlprLoss
 from components.data.AlprData import AlprDataset 
 from time import perf_counter
 import numpy as np
-import albumentations as A
-import imgaug.augmenters as iaa
-from imgaug.augmentables.polys import Polygon, PolygonsOnImage
-import cv2
 
 loader = AlprDataset(images_folder="./train_data/images", labels_folder="./train_data/labels", input_size=384)
-image, label = loader[0]
+image, output_feature_map = loader[0]
+print(f"==>> image.shape: {image.shape}")
+print(f"==>> label.shape: {output_feature_map.shape}")
+
+model = AlprModel()
+
+probs, bbox = model(image.unsqueeze(0))
+concat_predict_output = torch.cat([probs, bbox], dim=1)
+print(f"==>> concat_predict_output.shape: {concat_predict_output.shape}")
+output_feature_map = output_feature_map.unsqueeze(0)
+print(f"==>> output_feature_map.shape: {output_feature_map.shape}")
+loss = AlprLoss()
+loss_val = loss(concat_predict_output, output_feature_map)
+loss_val.backward()
 
 
 # # Load an image and its polygon labels

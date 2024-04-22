@@ -14,11 +14,6 @@ def IoU(tl_rect_A, br_rect_A, tl_rect_B, br_rect_B):
         return intersection_area / union_area
 
 def IOU_centre_and_dims(mn_center, mn_rect_wh, bounding_rect_center, bounding_rect_wh):
-        print(f"==>> mn_center: {mn_center}")
-        print(f"==>> mn_rect_wh: {mn_rect_wh}")
-        print(f"==>> bounding_rect_center: {bounding_rect_center}")
-        print(f"==>> bounding_rect_wh: {bounding_rect_wh}")
-        print()
         return IoU(mn_center - mn_rect_wh / 2, \
                         mn_center + mn_rect_wh / 2, \
                         bounding_rect_center - bounding_rect_wh / 2, \
