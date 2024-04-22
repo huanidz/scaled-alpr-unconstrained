@@ -7,11 +7,8 @@ from torch.utils.data import Dataset
 from utils.helper_func import IOU_centre_and_dims
 
 # Augmentation
-import random
-import imgaug
 import imgaug.augmenters as iaa
 from imgaug.augmentables.polys import Polygon, PolygonsOnImage
-import albumentations as alb
 
 class AlprDataset(Dataset):
     
@@ -27,9 +24,7 @@ class AlprDataset(Dataset):
         self.images = natsorted(glob(f"{images_folder}/*"))
         self.labels = natsorted(glob(f"{labels_folder}/*"))
         self.input_size = input_size
-        
-        self.counter = 0
-        
+                
     def __len__(self):
         return len(self.images)
     
@@ -49,67 +44,28 @@ class AlprDataset(Dataset):
         p4 = (label[3], label[7])
 
         polygon = Polygon([p1, p2, p3, p4])
-        
-        # Find center point of a contour which has points of the polygon
-        contour = polygon.coords
-        
-        M = cv2.moments(contour)
-        cx = int(M['m10']/M['m00'])
-        cy = int(M['m01']/M['m00'])
-        
-        Center_Of_Image = (W / 2, H / 2)
-        offset_to_shift_X = int(Center_Of_Image[0] - cx)
-        offset_to_shift_Y = int(Center_Of_Image[1] - cy)     
-        
-        translation_matrix = np.float32([[1, 0, offset_to_shift_X], [0, 1, offset_to_shift_Y]])
-        image = cv2.warpAffine(image, translation_matrix, (W, H), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
-        
-        p1 = (p1[0] + offset_to_shift_X, p1[1] + offset_to_shift_Y)
-        p2 = (p2[0] + offset_to_shift_X, p2[1] + offset_to_shift_Y)
-        p3 = (p3[0] + offset_to_shift_X, p3[1] + offset_to_shift_Y)
-        p4 = (p4[0] + offset_to_shift_X, p4[1] + offset_to_shift_Y)
-        
-        polygon = Polygon([p1, p2, p3, p4])
         polygons = PolygonsOnImage([polygon], shape=image.shape)
         
-        # cv2.imwrite(f"/home/huan/prjdir/scaled-alpr-unconstrained/visual/warp.jpg", image)
-        
-        
-        # TODO: Add transform / augmentation code here
+        # Augmenter for image (after cropping/non-cropping)
         augmenter = iaa.Sequential([
-            iaa.Affine(scale={"x": (1.0, 2.0), "y": (1.0, 2.0)}),
-            iaa.Rotate((-45, 45)),  # Random rotation
-            iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.1, 0.1)}),  # Random shift
+            iaa.Sometimes(0.5, iaa.CropAndPad(px=(-100, 100))),
+            iaa.Rotate((-30, 30)),  # Random rotation
             iaa.Fliplr(0.5),  # Random horizontal flip
-            iaa.GaussianBlur(sigma=(0, 1.5)),  # Random gaussian blur
-            iaa.PerspectiveTransform(scale=(0.05, 0.1)),
-            iaa.ChannelShuffle(0.2),  # Random channel shuffle
-        ], random_order=True)
-        
-        cropper = iaa.CropToFixedSize(height=self.input_size, width=self.input_size, position="center")
-        
-        image = cropper.augment_image(image)
-        resized_polys = cropper.augment_polygons(polygons)
-        # cv2.imwrite(f"/home/huan/prjdir/scaled-alpr-unconstrained/visual/cropped_image_{self.counter}.jpg", image)
+            iaa.GaussianBlur(sigma=(0, 1.1)),  # Random gaussian blur
+            iaa.ChannelShuffle(0.1),  # Random channel shuffle,
+            iaa.Resize({"height": self.input_size, "width": self.input_size})
+        ])
         
         augmenter = augmenter.to_deterministic()
         augmented_image = augmenter.augment_image(image)
-        # cv2.imwrite(f"/home/huan/prjdir/scaled-alpr-unconstrained/visual/augmented_image_{self.counter}.jpg", augmented_image)
+        augmented_poly = augmenter.augment_polygons(polygons)
         
-        # draw_img = augmented_image.copy()
-        
-        augmented_poly = augmenter.augment_polygons(resized_polys)[0].coords
-        # int_aug_poly = np.int32(augmented_poly)
-        
-        # cv2.line(draw_img, tuple(int_aug_poly[0]), tuple(int_aug_poly[1]), (0, 0, 255), 2)
-        # cv2.line(draw_img, tuple(int_aug_poly[1]), tuple(int_aug_poly[2]), (0, 0, 255), 2)
-        # cv2.line(draw_img, tuple(int_aug_poly[2]), tuple(int_aug_poly[3]), (0, 0, 255), 2)
-        # cv2.line(draw_img, tuple(int_aug_poly[3]), tuple(int_aug_poly[0]), (0, 0, 255), 2)
-        
-        # cv2.imwrite(f"/home/huan/prjdir/scaled-alpr-unconstrained/visual/augmented_poly_{self.counter}.jpg", draw_img)
-        self.counter += 1
+        # Ensure the polys is inside the image, otherwise it will cause some error later
+        if augmented_poly[0].is_out_of_image(augmented_image.shape, partly=True):
+            return self.__getitem__(index)
         
         
+        augmented_poly = augmenter.augment_polygons(polygons)[0].coords
         bounding_rect = cv2.boundingRect(augmented_poly.astype(np.int32))
         
         output_feature_map = self._to_output_feature_map(bounding_rect, augmented_poly / self.input_size)
@@ -118,10 +74,9 @@ class AlprDataset(Dataset):
         image = torch.from_numpy(augmented_image).permute(2, 0, 1).float().div(255.0)
         
         return image, output_feature_map
-    
+
     def load_image(self, image_path):
         image = cv2.imread(image_path)
-        # image = cv2.resize(image, (self.input_size, self.input_size))
         return image
     
     def load_label(self, label_path):
@@ -167,6 +122,4 @@ class AlprDataset(Dataset):
 
                     Y[0, y, x] = 1.0
                     Y[1:, y, x] = p_side.flatten()
-        num_ones = np.count_nonzero(Y == 1.0)
-        # print(f"==>> num_ones: {num_ones}")
         return Y
