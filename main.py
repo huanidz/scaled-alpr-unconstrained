@@ -8,16 +8,17 @@ from components.model.AlprModel import AlprModel
 from utils.util_func import count_parameters
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
 
 model = AlprModel().to(device)
 print(f'The model has {count_parameters(model):,} trainable parameters')
 
 criteria = AlprLoss().to(device)
-optimizer = torch.optim.SGD(model.parameters(), lr=0.0003)
+optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
 
-dataset = AlprDataset(images_folder="./train_data/vollmont_images", labels_folder="./train_data/vollmont_labels", input_size=384)
+dataset = AlprDataset(images_folder="./train_data/WPOD_Training_Dataset/images", labels_folder="./train_data/WPOD_Training_Dataset/labels", input_size=384)
 
-batch_size = 16
+batch_size = 8
 
 train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
@@ -52,3 +53,8 @@ for epoch in range(epochs):
             running_loss = 0.0
             if loss_per_batch < lowest_loss:
                 lowest_loss = loss_per_batch
+                
+    # Save the model each epoch
+    print("Saving model...")
+    torch.save(model.state_dict(), f"model_{epoch}.pth")
+    

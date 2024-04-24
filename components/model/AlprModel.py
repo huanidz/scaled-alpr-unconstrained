@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from ..extractor import AlprResBlock, ConvBlock
 
@@ -67,7 +68,7 @@ class AlprModel(nn.Module):
         x = self.res_block_8(x)
         x = self.res_block_9(x)
         
-        probs = self.out_probs(x)
+        probs = torch.softmax(self.out_probs(x), dim=1) # B, 2, H, W
         bbox = self.out_bbox(x)
         
         return probs, bbox

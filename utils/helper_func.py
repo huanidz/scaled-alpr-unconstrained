@@ -19,7 +19,28 @@ def IOU_centre_and_dims(mn_center, mn_rect_wh, bounding_rect_center, bounding_re
                         mn_center + mn_rect_wh / 2, \
                         bounding_rect_center - bounding_rect_wh / 2, \
                         bounding_rect_center + bounding_rect_wh / 2)
-        
+
+def IOU_labels(l1, l2):
+    return IoU(l1.tl(),l1.br(),l2.tl(),l2.br())
+     
+def nms(Labels, iou_threshold = 0.5):
+    SelectedLabels = []
+    # each item in Labels: (pts, prob)
+    Labels.sort(key=lambda l: l[1],reverse=True)
+
+    for label in Labels:
+
+        non_overlap = True
+        for sel_label in SelectedLabels:
+            if IOU_labels(label, sel_label) > iou_threshold:
+                non_overlap = False
+                break
+
+        if non_overlap:
+            SelectedLabels.append(label)
+
+    return SelectedLabels
+   
 def crop_and_pad(image, x, y, w_range, h_range, polygon_coords=None):
         # Get the dimensions of the input image
         height, width = image.shape[:2]

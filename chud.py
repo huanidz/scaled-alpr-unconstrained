@@ -1,23 +1,20 @@
-import cv2
+import torch
 import numpy as np
 
-# Load the image
-img = cv2.imread('./train_data/images/00011.jpg')
+a = np.array([[1,2,3],[4,5,6]])
 
-# Define the shift offsets (x, y)
-x_offset = 50
-y_offset = -30
+b = np.where(a > 2)
+# print(f"==>> b: {b}")
 
-# Get the image dimensions
-height, width = img.shape[:2]
+# Make a dummy 4x4x3 tensor with integer values between 0 and 100
+c = np.random.randint(0, 101, size=(4, 4, 3))
+# c = np.random.rand(4, 4, 3)
+d = c[:, 2, 2]
 
-# Create the translation matrix
-translation_matrix = np.float32([[1, 0, x_offset], [0, 1, y_offset]])
+# Random tensor with value range from -1 to 1
+d = np.random.randn(2, 4, 4)
+print(f"==>> d: {d}")
 
-# Warp the image using the translation matrix
-shifted_img = cv2.warpAffine(img, translation_matrix, (width, height), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
+e = torch.softmax(torch.from_numpy(d), dim=0)
+print(f"==>> e: {e}")
 
-# Display the shifted image
-cv2.imshow('Shifted Image', shifted_img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
