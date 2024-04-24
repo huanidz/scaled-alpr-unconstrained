@@ -1,25 +1,27 @@
-import numpy as np
+import cv2
 import torch
+import numpy as np
 from utils.helper_func import nms
-# Literally adopt from original repo
 
+def preprocess(image, target_size):
+    image_resized = cv2.resize(image, (target_size, target_size))
+    model_input = image.astype(np.float32)
+    model_input = cv2.resize(model_input, (target_size, target_size))
+    model_input = model_input.transpose((2, 0, 1))
+    model_input = model_input / 255.0
+    model_input = model_input.reshape(1, 3, target_size, target_size)
+    model_input = torch.from_numpy(model_input).float()
+    return image_resized, model_input
 
-def get_pts_homogeneous(tlx, tly, brx, bry):
+def reconstruct(resized_image, predict_feature_map, detection_threshold):
     """
-        Alias for getRectPts in original repo
-    """    
-    return np.array([
-        [tlx, brx, brx, tlx],
-        [tly, tly, bry, bry],
-        [1.0, 1.0, 1.0, 1.0]
-    ], np.float32)
-
-def reconstruct(original_image, resized_image, predict_feature_map, detection_threshold):
-    
+    Adopt from original repo and simplified!
+    """
     resized_H, resized_W, _ = resized_image.shape
     
-    net_stride 	= 16 # 2**4 
-    side 		= ((resized_W + 40.)/2.)/net_stride # 7.75
+    net_stride 	= 16 # the downsample scale of the model
+    balance_side = 45.0 # 45 is my choose for 384x384 input size, 40 is for 208 from the original, adjust it acordingly to your input size
+    side 		= ((resized_W + balance_side) / 2.0)/net_stride
     
     predict_feature_map = predict_feature_map.squeeze() # 9x24x24
 
@@ -37,14 +39,15 @@ def reconstruct(original_image, resized_image, predict_feature_map, detection_th
                       [ vxx, -vyy, 1.],
                       [ vxx,  vyy, 1.],
                       [-vxx,  vyy, 1.]]).T
-    labels = []
+    
+    labels = [] # labels here mean raw plates that need to put into nms
 
     for i in range(len(yy_valid)):
         y, x = yy_valid[i], xx_valid[i] # Potential bug
         affine = Affines[:, y, x] # (6, )
         prob = Probs[y, x] # (1, )
  
-        mn = torch.Tensor([float(x) + .5, float(y) + .5])
+        mn = torch.Tensor([float(x) + 0.5, float(y) + 0.5])
 
         A = torch.reshape(affine,(2,3))
         A[0,0] = max(A[0,0], 0.)
@@ -56,13 +59,9 @@ def reconstruct(original_image, resized_image, predict_feature_map, detection_th
 
         pts_prop = pts_MN / MN.reshape((2,1))
 
-        # print(f"==>> pts_prop: {pts_prop}")
-        # print(f"==>> prob: {prob}")
-        # raise Exception("haha")
         if prob > 0 and prob < 1:
             labels.append((pts_prop, prob))
 
-    print(f"==>> labels: {len(labels)}")
     final_labels = nms(Labels=labels, iou_threshold=0.1)
     TLps = []
     

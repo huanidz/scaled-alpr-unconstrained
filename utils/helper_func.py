@@ -21,7 +21,31 @@ def IOU_centre_and_dims(mn_center, mn_rect_wh, bounding_rect_center, bounding_re
                         bounding_rect_center + bounding_rect_wh / 2)
 
 def IOU_labels(l1, l2):
-    return IoU(l1.tl(),l1.br(),l2.tl(),l2.br())
+    # L: [[x1, x2, x3, x4], [y1, y2, y3, y4]]
+    
+    l1_pts = l1[0].numpy().transpose(1, 0)
+    l2_pts = l2[0].numpy().transpose(1, 0)
+    
+    # Finding bounding rect
+    x_coords_1 = [point[0] for point in l1_pts]
+    y_coords_1 = [point[1] for point in l1_pts]
+    
+    x_min_1, x_max_1 = min(x_coords_1), max(x_coords_1)
+    y_min_1, y_max_1 = min(y_coords_1), max(y_coords_1)
+    
+    top_left_1 = np.array([x_min_1, y_min_1], np.float32)
+    bottom_right_1 = np.array([x_max_1, y_max_1], np.float32)
+    
+    x_coords_2 = [point[0] for point in l2_pts]
+    y_coords_2 = [point[1] for point in l2_pts]
+    
+    x_min_2, x_max_2 = min(x_coords_2), max(x_coords_2)
+    y_min_2, y_max_2 = min(y_coords_2), max(y_coords_2)
+    
+    top_left_2 = np.array([x_min_2, y_min_2], np.float32)
+    bottom_right_2 = np.array([x_max_2, y_max_2], np.float32)
+    
+    return IoU(top_left_1, bottom_right_1, top_left_2, bottom_right_2)
      
 def nms(Labels, iou_threshold = 0.5):
     SelectedLabels = []
