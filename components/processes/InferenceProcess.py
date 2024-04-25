@@ -33,7 +33,8 @@ def reconstruct(resized_image, predict_feature_map, detection_threshold):
     H_resized, W_resized, _ = resized_image.shape
     MN = torch.Tensor([W_resized / net_stride, H_resized / net_stride])
     
-    vxx = vyy = 0.5 # alpha
+    vxx = 0.47 # alpha
+    vyy = 0.495 # alpha
     
     base = torch.Tensor([[-vxx, -vyy, 1.],
                       [ vxx, -vyy, 1.],
@@ -41,7 +42,6 @@ def reconstruct(resized_image, predict_feature_map, detection_threshold):
                       [-vxx,  vyy, 1.]]).T
     
     labels = [] # labels here mean raw plates that need to put into nms
-
     for i in range(len(yy_valid)):
         y, x = yy_valid[i], xx_valid[i] # Potential bug
         affine = Affines[:, y, x] # (6, )

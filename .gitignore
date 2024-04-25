@@ -1,7 +1,15 @@
 downloads/
 downloads/*
 
+train_data/
+train_data/*
+
+checkpoints/
+checkpoints/*
+
 visual/
 visual/*
 
 *.pyc
+
+.venv

@@ -4,6 +4,7 @@ import numpy as np
 from glob import glob
 from natsort import natsorted
 from torch.utils.data import Dataset
+from shapely.geometry import Polygon as ShapelyPolygon
 from utils.helper_func import IOU_centre_and_dims
 
 # Augmentation
@@ -12,7 +13,7 @@ from imgaug.augmentables.polys import Polygon, PolygonsOnImage
 
 class AlprDataset(Dataset):
     
-    def __init__(self, images_folder, labels_folder, input_size=384) -> None:
+    def __init__(self, images_folder, labels_folder, input_size=384, mode="train") -> None:
         super(AlprDataset, self).__init__()
         
         if images_folder[-1] == "/":
@@ -24,6 +25,7 @@ class AlprDataset(Dataset):
         self.images = natsorted(glob(f"{images_folder}/*"))
         self.labels = natsorted(glob(f"{labels_folder}/*"))
         self.input_size = input_size
+        self.mode = mode
                 
     def __len__(self):
         return len(self.images)
@@ -34,14 +36,28 @@ class AlprDataset(Dataset):
         
         H, W, C = image.shape
         
+        if self.mode == "eval":
+
+            p1 = (label[0], label[4])
+            p2 = (label[1], label[5])
+            p3 = (label[2], label[6])
+            p4 = (label[3], label[7])
+
+            resized_image = cv2.resize(image, (self.input_size, self.input_size), interpolation=cv2.INTER_NEAREST)
+            model_input = torch.from_numpy(resized_image).permute(2, 0, 1).float().div(255.0)
+            gt_plate_coordinate = np.array([p1, p2, p3, p4], np.float32) # ground truth
+            return resized_image, model_input, gt_plate_coordinate
+        
         label[:4] *= W
         label[4:] *= H
         label = label.astype(np.int32)
+        
         
         p1 = (label[0], label[4])
         p2 = (label[1], label[5])
         p3 = (label[2], label[6])
         p4 = (label[3], label[7])
+
 
         polygon = Polygon([p1, p2, p3, p4])
         polygons = PolygonsOnImage([polygon], shape=image.shape)
@@ -51,8 +67,13 @@ class AlprDataset(Dataset):
             iaa.Sometimes(0.5, iaa.CropAndPad(px=(-100, 100))),
             iaa.Rotate((-30, 30)),  # Random rotation
             iaa.Fliplr(0.5),  # Random horizontal flip
-            iaa.GaussianBlur(sigma=(0, 1.1)),  # Random gaussian blur
+            iaa.Sometimes(0.5, iaa.GaussianBlur(sigma=(0, 1.5))),  # Random gaussian blur
             iaa.ChannelShuffle(0.1),  # Random channel shuffle,
+            iaa.Sometimes(0.3, iaa.AdditiveLaplaceNoise(scale=(0, 0.1*255))),  # Additive laplace noise
+            iaa.Sometimes(0.4, iaa.MultiplySaturation((0.5, 1.5))),  # Adjust saturation
+            iaa.Sometimes(0.3, iaa.MultiplyHueAndSaturation((0.5, 1.5), per_channel=True)),  # Adjust hue and saturation
+            iaa.Sometimes(0.4, iaa.MultiplyBrightness((0.6, 1.4))),
+            iaa.Sometimes(0.3, iaa.Sharpen(alpha=(0.0, 0.8), lightness=(0.75, 1.5))),
             iaa.Resize({"height": self.input_size, "width": self.input_size})
         ])
         

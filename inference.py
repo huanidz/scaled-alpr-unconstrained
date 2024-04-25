@@ -9,21 +9,23 @@ import argparse
 from time import perf_counter
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--image", help="File path to image", required=True)
+# parser.add_argument("-i", "--image", help="File path to image", required=True)
 parser.add_argument("-s", "--size", help="Size of input image", default=384, type=int)
 parser.add_argument("-t", "--threshold", help="Detection threshold", default=0.5, type=float)
+parser.add_argument("-d", "--data", help="Path to data folder", default=None, type=str)
 args = parser.parse_args()
 
 # Default to CPU since it's fast enough to run a demo!
 device = torch.device("cpu")
 
-model = AlprModel().to(device)
+model = AlprModel(scale="base").to(device)
 model.eval()
 
-state_dict = torch.load("./checkpoints/model_69.pth", map_location=device)
-model.load_state_dict(state_dict)
+checkpoint = torch.load("./checkpoints/base_best.pth", map_location=device)
+model.load_state_dict(checkpoint['model_state_dict'])
 
-image = cv2.imread(args.image)
+# image = cv2.imread(args.image)
+image = cv2.imread(input("Enter image path: "))
 H, W, C = image.shape
 
 print("Inference single image...")
@@ -45,7 +47,10 @@ end_infer = perf_counter()
 print("Time taken: ", end_infer - start_infer, "ms")
 print("Total plates found: ", len(results))
 
-for plate in results:
+for i, plate in enumerate(results):
+    print(f"  Plate: {i + 1}")
+    print(f"    Score: {plate[1].numpy()}")
+    print(f"    Coordinates: {plate[0].numpy().transpose((1, 0))}")
     coordinates = plate[0].numpy().transpose((1, 0))
     probs = plate[1].numpy()
 
@@ -60,3 +65,10 @@ if not os.path.exists("./inference"):
     
 cv2.imwrite("./inference/inference.jpg", image)
 print("Saving result image to inference.jpg")
+
+# Display
+display_resized = cv2.resize(image, (800, 600))
+cv2.imshow("Result", display_resized)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
