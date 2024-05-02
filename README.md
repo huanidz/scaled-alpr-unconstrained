@@ -86,3 +86,17 @@ python export_onnx.py --model_path your_model.pth --size 384 --scale small
 - [ ] Try and update backbone/head for more accuracy
 - [ ] Add pretrained weights
 - [ ] Multiple GPUs training
+
+---
+
+
+```
+@INPROCEEDINGS{silva2018a,
+  author={S. M. Silva and C. R. Jung}, 
+  booktitle={2018 European Conference on Computer Vision (ECCV)}, 
+  title={License Plate Detection and Recognition in Unconstrained Scenarios}, 
+  year={2018}, 
+  pages={580-596}, 
+  doi={10.1007/978-3-030-01258-8_36}, 
+  month={Sep},}
+```
