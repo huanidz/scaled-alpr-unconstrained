@@ -7,6 +7,7 @@ from components.losses.loss import AlprLoss
 from components.data.AlprData import AlprDataset
 from components.model.AlprModel import AlprModel
 from components.processes.InferenceProcess import reconstruct
+from components.processes.TrainProcesses import evaluate
 from components.metrics.evaluation import calculate_metrics
 from utils.util_func import count_parameters
 
@@ -35,13 +36,20 @@ if args.data[:-1] == "/":
 images_path = args.data + "/images"
 labels_path = args.data + "/labels"
 
+eval_images_path = args.data + "/eval/images"
+eval_labels_path = args.data + "/eval/labels"
+
 dataset = AlprDataset(images_folder=images_path, labels_folder=labels_path, input_size=args.size)
-eval_dataset = AlprDataset(images_folder=images_path, labels_folder=labels_path, input_size=args.size, mode="eval")
+
+train_eval_dataset = AlprDataset(images_folder=images_path, labels_folder=labels_path, input_size=args.size, mode="eval")
+test_eval_dataset = AlprDataset(images_folder=eval_images_path, labels_folder=eval_labels_path, input_size=args.size, mode="eval")
 
 batch_size = args.bs
 
+# Ugly, may refract but it worked!
 train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, drop_last=False)
-test_loader = DataLoader(eval_dataset, batch_size=batch_size, shuffle=False, num_workers=4, drop_last=False)
+train_eval_loader = DataLoader(train_eval_dataset, batch_size=batch_size, shuffle=False, num_workers=4, drop_last=False)
+test_loader = DataLoader(test_eval_dataset, batch_size=batch_size, shuffle=False, num_workers=4, drop_last=False)
 
 num_epochs = args.epochs
 n_epochs_eval = args.eval_after
@@ -55,12 +63,12 @@ if args.resume_from:
     checkpoint = torch.load(load_path)
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    epoch = checkpoint['epoch']
+    last_epoch = checkpoint['epoch']
     best_f1_score = checkpoint['best_f1_score']
-    last_eval_epoch = epoch
-    print(f"Checkpoint loaded. Resuming from epoch {epoch}...")
+    last_eval_epoch = last_epoch
+    print(f"Checkpoint loaded. Resuming from epoch {last_epoch}...")
 else:
-    epoch = 0
+    last_epoch = 0
     best_f1_score = 0
 
 
@@ -68,7 +76,7 @@ print("Start training..")
 for epoch in range(num_epochs):
     
     # Skipping epoch if resume
-    if epoch == 0 and args.resume_from:
+    if args.resume_from and epoch == 0 and epoch < last_epoch:
         continue
     
     print(f"Epoch {epoch + 1}/{num_epochs}")
@@ -98,44 +106,23 @@ for epoch in range(num_epochs):
     # Eval
     if (epoch - last_eval_epoch) % n_epochs_eval == 0:
         print("Evaluating model...")
-        model.eval()
-        eval_threshold = 0.5
-        with torch.no_grad():
-            ious = []
-            f1s = []
-            for batch_idx, (resized_image, model_input, gt_plate_poly) in enumerate(test_loader):
-                model_input = model_input.to(device)
-                output_feature_map = output_feature_map.to(device)
-                probs, bbox = model(model_input)
-                concat_predict_output = torch.cat([probs, bbox], dim=1).detach().cpu()
-                
-                for i in range(len(concat_predict_output)):
-                    results = reconstruct(resized_image[i], concat_predict_output[i], eval_threshold)
-
-                    # Calculate metrics
-                    if len(results) == 0:
-                        iou, f1 = 0, 0
-                    else:
-                        single_predict_plate_poly = results[0][0].numpy().transpose((1, 0))
-                        single_gt_plate_poly = gt_plate_poly[i].numpy()
-                        iou, f1 = calculate_metrics(single_predict_plate_poly, single_gt_plate_poly)
-
-                    ious.append(iou)
-                    f1s.append(f1)
-
-            mean_iou = np.mean(ious)
-            mean_f1 = np.mean(f1s)
-            print(f"IoU: {mean_iou:.4f}, F1_Score: {mean_f1:.4f}")
-            if mean_f1 > best_f1_score:
-                print("New higher F1-Score, saving model...")
-                best_f1_score = mean_f1
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'best_f1_score': best_f1_score
-                }, f"./checkpoints/{args.scale}_best.pth")
-
+        train_mean_iou, train_mean_f1 = evaluate(model=model, dataloader=train_eval_loader, eval_threshold=0.5, device=device)
+        print(f"[TRAIN] IoU: {train_mean_iou:.4f}, F1_Score: {train_mean_f1:.4f}")
+        
+        test_mean_iou, test_mean_f1 = evaluate(model=model, dataloader=test_loader, eval_threshold=0.5,  device=device)
+        print(f"[TEST ] IoU: {test_mean_iou:.4f}, F1_Score: {test_mean_f1:.4f}")
+        
+        if test_mean_f1 > best_f1_score:
+            print("Higher f1 score found. Saving model...")
+            best_f1_score = test_mean_f1
+            save_path = f"checkpoints/{args.scale}_best.pth"
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'best_f1_score': best_f1_score
+            }, save_path)
+            
         last_eval_epoch = epoch
         model.train()
 

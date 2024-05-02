@@ -79,7 +79,6 @@ class AlprDataset(Dataset):
         
         augmenter = augmenter.to_deterministic()
         augmented_image = augmenter.augment_image(image)
-        cv2.imwrite(f"/home/huan/prjdir/scaled-alpr-unconstrained/visual/augmented_image_{index}.jpg", augmented_image)
         augmented_poly = augmenter.augment_polygons(polygons)
         
         # Ensure the polys is inside the image, otherwise it will cause some error later

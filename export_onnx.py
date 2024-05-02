@@ -1,21 +1,23 @@
 import torch
 import torch.onnx
-
-import torch
 import torch.nn as nn
 from components.model.AlprModel import AlprModel
 
-# Path to your PyTorch checkpoint
-PATH_TO_CHECKPOINT = "./checkpoints/small_best.pth"
+import argparse
 
-model = AlprModel(scale="small")
+parser = argparse.ArgumentParser()
+parser.add_argument("--model_path", help="Path to model checkpoint", type=str, required=True)
+parser.add_argument("--size", help="Size of input image", type=int, required=True)
+parser.add_argument("--scale", help="Scale of the model (tiny, small, base, large)", type=str, required=True)
+args = parser.parse_args()
+
+# Path to your PyTorch checkpoint
+model = AlprModel(scale=args.scale)
 
 # Load your PyTorch model
-checkpoints = torch.load(PATH_TO_CHECKPOINT)
+checkpoints = torch.load(args.model_path)
 model.load_state_dict(checkpoints['model_state_dict'])
-
 print("loaded model state dict")
-
 
 # Set the model to evaluation mode
 model.eval()
@@ -32,7 +34,7 @@ class FusedAlprModel(nn.Module):
         return fused_output
 
 # Set input dimensions
-input_shape = (1, 3, 384, 384)  # (batch_size, channels, height, width)
+input_shape = (1, 3, args.size, args.size)  # (batch_size, channels, height, width)
 
 fused_model = FusedAlprModel(model)
 

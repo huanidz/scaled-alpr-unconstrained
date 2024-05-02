@@ -9,7 +9,7 @@ import argparse
 from time import perf_counter
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--model_path", help="Path to model checkpoint", default=None, type=str)
+parser.add_argument("--model_path", help="Path to model checkpoint (pth)", default=None, type=str)
 parser.add_argument("--size", help="Size of input image", default=384, type=int)
 parser.add_argument("--threshold", help="Detection threshold", default=0.5, type=float)
 parser.add_argument("--data", help="Path to data folder", default=None, type=str)

@@ -1,9 +1,11 @@
 downloads/
 downloads/*
-
 train_data/
 train_data/*
-
+test_data/*
+test_data/
+data/
+data/*
 checkpoints/
 checkpoints/*
 
