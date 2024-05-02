@@ -8,6 +8,8 @@ data/
 data/*
 checkpoints/
 checkpoints/*
+inference/
+inference/*
 
 visual/
 visual/*
