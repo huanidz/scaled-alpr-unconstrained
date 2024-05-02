@@ -64,7 +64,7 @@ class AlprDataset(Dataset):
         
         # Augmenter for image (after cropping/non-cropping)
         augmenter = iaa.Sequential([
-            iaa.Sometimes(0.5, iaa.CropAndPad(px=(-100, 100))),
+            iaa.Sometimes(0.5, iaa.CropAndPad(px=(-150, 150))),
             iaa.Rotate((-30, 30)),  # Random rotation
             iaa.Fliplr(0.5),  # Random horizontal flip
             iaa.Sometimes(0.5, iaa.GaussianBlur(sigma=(0, 1.5))),  # Random gaussian blur
@@ -79,6 +79,7 @@ class AlprDataset(Dataset):
         
         augmenter = augmenter.to_deterministic()
         augmented_image = augmenter.augment_image(image)
+        cv2.imwrite(f"/home/huan/prjdir/scaled-alpr-unconstrained/visual/augmented_image_{index}.jpg", augmented_image)
         augmented_poly = augmenter.augment_polygons(polygons)
         
         # Ensure the polys is inside the image, otherwise it will cause some error later

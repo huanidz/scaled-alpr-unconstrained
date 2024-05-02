@@ -13,3 +13,6 @@ visual/*
 *.pyc
 
 .venv
+
+*.onnx
+*.trt

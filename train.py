@@ -12,7 +12,7 @@ from utils.util_func import count_parameters
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument("--data", help="Path to data folder", default="./train_data", required=True, type=str)
-argparser.add_argument("--lr", help="Learning rate", default=3e-4, type=float)
+argparser.add_argument("--lr", help="Learning rate", default=1e-3, type=float)
 argparser.add_argument("--bs", help="Batch size", default=16, type=int)
 argparser.add_argument("--epochs", help="Number of epochs", default=200, type=int)
 argparser.add_argument("--eval_after", help="Evaluate model after n epochs", default=1, type=int)
