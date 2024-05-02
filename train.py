@@ -33,8 +33,8 @@ optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight
 if args.data[:-1] == "/":
     args.data = args.data[:-1]
     
-images_path = args.data + "/images"
-labels_path = args.data + "/labels"
+images_path = args.data + "/train/images"
+labels_path = args.data + "/train/labels"
 
 eval_images_path = args.data + "/eval/images"
 eval_labels_path = args.data + "/eval/labels"
