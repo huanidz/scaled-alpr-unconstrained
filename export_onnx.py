@@ -2,7 +2,8 @@ import torch
 import torch.onnx
 import torch.nn as nn
 from components.model.AlprModel import AlprModel
-
+from components.processes.InferenceProcess import preprocess
+import cv2
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -38,15 +39,15 @@ input_shape = (1, 3, args.size, args.size)  # (batch_size, channels, height, wid
 
 fused_model = FusedAlprModel(model)
 
-# Set the input sample
-dummy_input = torch.randn(input_shape)
+image = cv2.imread("/home/huan/Pictures/debug/35005211input.jpg")
+image_resized, model_input = preprocess(image, args.size)
 
 # Export the model to ONNX format
 print("Converting to onnx...")
 output_path = "model.onnx"
 torch.onnx.export(
     fused_model,
-    dummy_input,
+    model_input,
     output_path,
     export_params=True,
     opset_version=11,

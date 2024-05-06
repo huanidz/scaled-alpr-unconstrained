@@ -23,7 +23,7 @@ def reconstruct(resized_image, predict_feature_map, detection_threshold):
     balance_side = 45.0 # 45 is my choose for 384x384 input size, 40 is for 208 from the original, adjust it acordingly to your input size
     side 		= ((resized_W + balance_side) / 2.0)/net_stride
     
-    predict_feature_map = predict_feature_map.squeeze() # 9x24x24
+    predict_feature_map = predict_feature_map.squeeze() # 8x24x24
 
     Probs = predict_feature_map[0, ...] # 24x24 (first dim), The predict_feature_map[1, ...] is non-obj prob which is not used in post-process
     Affines = predict_feature_map[2:, ...] # 6x24x24 (last dims from the second dim)
