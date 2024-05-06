@@ -64,7 +64,8 @@ class AlprDataset(Dataset):
         
         # Augmenter for image (after cropping/non-cropping)
         augmenter = iaa.Sequential([
-            iaa.Sometimes(0.5, iaa.CropAndPad(px=(-150, 150))),
+            iaa.Resize({"height": self.input_size, "width": self.input_size}),
+            iaa.Sometimes(0.5, iaa.CropAndPad(px=(-100, 100))),
             iaa.Rotate((-30, 30)),  # Random rotation
             iaa.Fliplr(0.5),  # Random horizontal flip
             iaa.Sometimes(0.5, iaa.GaussianBlur(sigma=(0, 1.5))),  # Random gaussian blur
@@ -74,7 +75,6 @@ class AlprDataset(Dataset):
             iaa.Sometimes(0.3, iaa.MultiplyHueAndSaturation((0.5, 1.5), per_channel=True)),  # Adjust hue and saturation
             iaa.Sometimes(0.4, iaa.MultiplyBrightness((0.6, 1.4))),
             iaa.Sometimes(0.3, iaa.Sharpen(alpha=(0.0, 0.8), lightness=(0.75, 1.5))),
-            iaa.Resize({"height": self.input_size, "width": self.input_size})
         ])
         
         augmenter = augmenter.to_deterministic()
