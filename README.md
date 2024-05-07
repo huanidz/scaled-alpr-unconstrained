@@ -58,37 +58,46 @@ Your_Folder_Path/
 
 ```bash
 # Simple 'base' scale training (384x384 input size, ~1.7M parameters, SGD optimizer, 200 epochs, lr = 0.001, batch_size = 16)
-python train.py --data path_to_your_dataset_folder/
+python train.py --data path/to/dataset_folder/
 
 # Custom model scale example
-python train.py --data path_to_your_dataset_folder/ --scale small --size 256 --bs 32 --lr 0.0003
+python train.py --data path/to/dataset_folder/ --scale small --size 256 --bs 32 --lr 0.0003
 ```
+
 <h5> Model checkpoints will be saved into checkpoints/ in .pth format </h5>
 
 <h2> 4. Inference </h2>
 
 ```bash
 # Example of inferencing with scale 'base', input_size = 384x384, threshold = 0.5.
-python inference.py --model_path your_model.pth --size 384 --scale base --threshold 0.5
+python inference.py --model_path /path/to/your_model.pth --size 384 --scale base --threshold 0.5
 ```
 
 <h2> 5. ONNX deployment </h2>
 
 ```bash
-python export_onnx.py --model_path your_model.pth --size 384 --scale small
+python export_onnx.py --model_path /path/to/your_model.pth --size 384 --scale small
 ```
+
+<h2> 6. TensorRT Conversion (INT8 Quantization) </h2>
+
+```python
+python quantize.py --onnx /path/to/model.onnx --engine engine.trt --precision int8 --calib_input /path/to/training_images
+```
+
 
 ---
 
 ### TODOs:
-- [x] Training pipeline
-- [x] Inference pipeline
+
+- [X] Training pipeline
+- [X] Inference pipeline
+- [X] TensorRT Quantization Support
 - [ ] Try and update backbone/head for more accuracy
 - [ ] Add pretrained weights
 - [ ] Multiple GPUs training
 
 ---
-
 
 ```
 @INPROCEEDINGS{silva2018a,
