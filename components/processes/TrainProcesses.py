@@ -6,6 +6,7 @@ from components.metrics.evaluation import calculate_metrics
 
 
 def evaluate(model, dataloader, eval_threshold, device):
+    max_plates = 2
     model.eval()
     with torch.no_grad():
         ious = []
@@ -19,7 +20,7 @@ def evaluate(model, dataloader, eval_threshold, device):
                 results = reconstruct(resized_image[i], concat_predict_output[i], eval_threshold)
 
                 # Calculate metrics
-                if len(results) == 0:
+                if len(results) == 0 or len(results) > max_plates: 
                     iou, f1 = 0, 0
                 else:
                     single_predict_plate_poly = results[0][0].numpy().transpose((1, 0))
