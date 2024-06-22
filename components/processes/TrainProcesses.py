@@ -15,10 +15,8 @@ def evaluate(model, dataloader, eval_threshold, device):
             model_input = model_input.to(device)
             probs, bbox = model(model_input)
             concat_predict_output = torch.cat([probs, bbox], dim=1).detach().cpu()
-            
             for i in range(len(concat_predict_output)):
                 results = reconstruct(resized_image[i], concat_predict_output[i], eval_threshold)
-
                 # Calculate metrics
                 if len(results) == 0 or len(results) > max_plates: 
                     iou, f1 = 0, 0

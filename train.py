@@ -9,12 +9,11 @@ from components.processes.TrainProcesses import evaluate
 from utils.util_func import count_parameters, init_weights
 from time import perf_counter
 import torch.cuda.amp as amp
-from torch.optim.lr_scheduler import CosineAnnealingLR
-from prodigyopt import Prodigy
+from torch.optim.lr_scheduler import CosineAnnealingLR, CyclicLR
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument("--data", help="Path to data folder", default="./train_data", required=True, type=str)
-argparser.add_argument("--lr", help="Learning rate", default=1e-4, type=float)
+argparser.add_argument("--lr", help="Learning rate", default=1e-3, type=float)
 argparser.add_argument("--bs", help="Batch size", default=16, type=int)
 argparser.add_argument("--epochs", help="Number of epochs", default=200, type=int)
 argparser.add_argument("--eval_after", help="Evaluate model after n epochs", default=1, type=int)
@@ -34,7 +33,7 @@ print(f'Alpr model has {count_parameters(model):,} trainable parameters')
 
 criteria = AlprLoss().to(device)
 optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=1e-5)
-# optimizer = Prodigy(model.parameters())
+# optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5, eps=1e-7, betas=(0.9, 0.999))
 
 if args.data[:-1] == "/":
     args.data = args.data[:-1]
@@ -79,7 +78,9 @@ else:
     best_f1_score = 0
 
 # Cosine annealing learning rate
-scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-5)
+# scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-4)
+scheduler = CyclicLR(optimizer, base_lr=3e-4, max_lr=1e-3, step_size_up=20, cycle_momentum=False)
+
 
 print("Start training..")
 for epoch in range(num_epochs):
@@ -106,7 +107,7 @@ for epoch in range(num_epochs):
             loss = criteria(concat_predict_output, output_feature_map)
             
         loss.backward()
-        norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
+        # norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
         
         optimizer.step()
         torch.cuda.synchronize()
@@ -119,14 +120,14 @@ for epoch in range(num_epochs):
         if (batch_idx % print_per_n_step == 0 and batch_idx != 0) or batch_idx == len(train_loader) - 1:
             avg_time = sum(time_per_step)
             current_lr = optimizer.param_groups[0]['lr']
-            print(f'  Batch {batch_idx+1:03d}, Norm: {norm:.4f}, Loss: {running_loss / (print_per_n_step):.4f}, Time: {avg_time:.4f} ms, LR: {current_lr:.4f}')
+            print(f'  Batch {batch_idx+1:03d}, Loss: {running_loss / (print_per_n_step):.4f}, Time: {avg_time:.4f} ms, LR: {current_lr:.4f}')
             time_per_step = []
             running_loss = 0.0
     
     scheduler.step()
 
     # Eval
-    if (epoch - last_eval_epoch) % n_epochs_eval == 0:
+    if (epoch - last_eval_epoch) % n_epochs_eval == 0 and epoch != 0:
         print("Evaluating model...")
         train_mean_iou, train_mean_f1 = evaluate(model=model, dataloader=train_eval_loader, eval_threshold=0.5, device=device)
         print(f"[TRAIN] IoU: {train_mean_iou:.4f}, F1_Score: {train_mean_f1:.4f}")
@@ -137,7 +138,7 @@ for epoch in range(num_epochs):
         if test_mean_f1 > best_f1_score:
             print("Higher f1 score found. Saving model...")
             best_f1_score = test_mean_f1
-            save_path = f"checkpoints/{args.scale}_best.pth"
+            save_path = f"checkpoints/scale_{args.scale}_size_{args.size}_best.pth"
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
@@ -154,5 +155,5 @@ for epoch in range(num_epochs):
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'best_f1_score': best_f1_score
-    }, f"./checkpoints/{args.scale}_latest.pth")
+    }, f"./checkpoints/scale_{args.scale}_size_{args.size}_latest.pth")
     
