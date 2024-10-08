@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 from natsort import natsorted
 
-from components.processes.InferenceProcess import preprocess
+from components.processes.InferenceProcess import preprocess, preprocess_V6, preprocess_reid
 
 class ImageBatcher:
     """
@@ -79,7 +79,7 @@ class ImageBatcher:
         self.batch_size = shape[0]
         assert self.batch_size > 0
         
-        self.input_size = 384
+        self.input_size = 256
         assert all([self.input_size > 0])
 
         # Adapt the number of images as needed
@@ -107,7 +107,7 @@ class ImageBatcher:
 
     def preprocess_image(self, image_path):
         image = cv2.imread(image_path)
-        _, model_input = preprocess(image, self.input_size)
+        model_input = preprocess_reid(image, self.input_size)
         return model_input
 
     def get_batch(self):

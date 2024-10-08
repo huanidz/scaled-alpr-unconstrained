@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 
 class LogLoss(nn.Module):
     def __init__(self, eps=1e-10):
@@ -16,7 +18,29 @@ class LogLoss(nn.Module):
         predict = torch.sum(predict, dim=1)  # Sum over C*H*W, output shape: (B,)
 
         return predict
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=2, eps=1e-10):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.eps = eps
+    
+    def forward(self, predict, target):
+        B, C, H, W = target.shape  # target shape: (B, C, H, W)
+        
+        # Ensure predictions are within (eps, 1-eps) to avoid log(0)
+        predict = torch.clamp(predict, self.eps, 1.0 - self.eps)
+        
+        # Compute the focal loss
+        pt = predict * target + (1 - predict) * (1 - target)  # pt = P if target == 1 else 1 - P
+        focal_weight = self.alpha * (1 - pt) ** self.gamma
+        loss = -focal_weight * (target * torch.log(predict) + (1 - target) * torch.log(1 - predict))
+        
+        # Sum over all elements
+        loss = loss.view(B, C * H * W)
+        loss = torch.sum(loss, dim=1)  # Sum over C*H*W, output shape: (B,)
 
+        return loss
 
 class L1Loss(nn.Module):
     def __init__(self):
@@ -30,14 +54,23 @@ class L1Loss(nn.Module):
         res = res.view(B, C * H * W)  # Reshape/flatten last three dimensions, res shape: (B, C*H*W)
         res = torch.sum(res, dim=1)  # Sum over C*H*W, res shape: (B,) 
         return res  # Return tensor with shape: (B,) 
+
+class SmoothL1Loss(nn.Module):
+    def __init__(self):
+        super(SmoothL1Loss, self).__init__()
+        self.smooth_l1_loss = nn.SmoothL1Loss()
     
+    def forward(self, predict, target):
+        return self.smooth_l1_loss(predict, target)
+
 class AlprLoss(nn.Module):
     
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.log_loss = LogLoss()
-        self.l1_loss = L1Loss()
         
+        self.non_vs_object_loss = FocalLoss()
+        self.pts_regression_loss = SmoothL1Loss()
+                
     def forward(self, predict, target):
         
         # Prob's shape: B x 2 x Out_H x Out_W (simplied: Bx2xHxW) (Out_H Out_W are depends on the input size)
@@ -76,11 +109,11 @@ class AlprLoss(nn.Module):
             
         flags = obj_prob_target.reshape(B, 1, H, W)
         
-        l1_loss = self.l1_loss(pts*flags, pts_true*flags)
-        obj_log_loss = self.log_loss(obj_prob_predict, obj_prob_target)
-        non_obj_log_loss = self.log_loss(non_obj_prob_predict, non_obj_prob_target)
+        l1_loss = self.pts_regression_loss(pts*flags, pts_true*flags)
+        obj_log_loss = self.non_vs_object_loss(obj_prob_predict, obj_prob_target)
+        non_obj_log_loss = self.non_vs_object_loss(non_obj_prob_predict, non_obj_prob_target)
         
-        loss = l1_loss + obj_log_loss + non_obj_log_loss        
+        loss = 2 * l1_loss + obj_log_loss + 0.5 * non_obj_log_loss        
         loss = torch.mean(loss)
         
         return loss        
