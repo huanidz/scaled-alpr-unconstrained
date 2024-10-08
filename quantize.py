@@ -33,7 +33,7 @@ log = logging.getLogger("EngineBuilder")
 
 sys.path.insert(1, os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
 
-class EngineCalibrator(trt.IInt8EntropyCalibrator):
+class EngineCalibrator(trt.IInt8EntropyCalibrator2):
     """
     Implements the INT8 MinMax Calibrator.
     """

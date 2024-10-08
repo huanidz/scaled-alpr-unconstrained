@@ -17,11 +17,12 @@ argparser.add_argument("--eval_after", help="Evaluate model after n epochs", def
 argparser.add_argument("--size", help="Size of input image", default=384, type=int)
 argparser.add_argument("--scale", help="Scale of the model (tiny, small, base, large)", default="base", type=str)
 argparser.add_argument("--resume_from", help="Resume from pth checkpoint (path)", default=None, type=str)
+argparser.add_argument("--fe", help="type of feature extractor (original or dla)", default="original", type=str)
 args = argparser.parse_args()
 print(args)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-model = AlprModel(scale=args.scale).to(device)
+model = AlprModel(scale=args.scale, feature_extractor=args.fe).to(device)
 print(f'Alpr model has {count_parameters(model):,} trainable parameters')
 
 criteria = AlprLoss().to(device)
@@ -101,7 +102,7 @@ for epoch in range(num_epochs):
             running_loss = 0.0
 
     # Eval
-    if (epoch - last_eval_epoch) % n_epochs_eval == 0:
+    if (epoch - last_eval_epoch) % n_epochs_eval == 0 and epoch != 0:
         print("Evaluating model...")
         train_mean_iou, train_mean_f1 = evaluate(model=model, dataloader=train_eval_loader, eval_threshold=0.5, device=device)
         print(f"[TRAIN] IoU: {train_mean_iou:.4f}, F1_Score: {train_mean_f1:.4f}")

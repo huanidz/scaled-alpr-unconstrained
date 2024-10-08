@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from components.model.AlprModel import AlprModel
 from components.processes.InferenceProcess import preprocess, reconstruct
-
+from kinda import flattenPerspectiveV2
 import argparse
 from time import perf_counter
 
@@ -60,7 +60,11 @@ for i, plate in enumerate(results):
 
     coordinates *= np.array([W, H])
     coordinates = coordinates.astype(np.int32)
+    print(f"    Coordinates (WH): {coordinates}")
 
+    flatten_mat = flattenPerspectiveV2(image, coordinates, 128, 64, True)
+    cv2.imwrite(f"plate_{i + 1}.jpg", flatten_mat)
+    
     cv2.polylines(image, [coordinates], True, (0, 255, 0), 2)
 
 # Save result

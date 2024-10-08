@@ -3,6 +3,57 @@ import torch
 import numpy as np
 from utils.helper_func import nms
 
+def letterbox(image, target_size):
+    height, width = image.shape[:2]
+    
+    # Calculate scaling ratio
+    ratio = min(target_size / height, target_size / width)
+    new_size = (int(width * ratio), int(height * ratio))
+    
+    # Resize the image
+    resized = cv2.resize(image, new_size)
+    
+    # Create a square image with gray padding
+    square = np.full((target_size, target_size, 3), 114, dtype=np.uint8)
+    
+    # Calculate padding
+    dw, dh = (target_size - new_size[0]) // 2, (target_size - new_size[1]) // 2
+    
+    # Place the resized image on the square
+    square[dh:dh+new_size[1], dw:dw+new_size[0]] = resized
+    
+    return square
+
+def preprocess_V6(image, target_size):
+    # Apply letterboxing
+    letterboxed = letterbox(image, target_size)
+    
+    # Convert to float32 and normalize
+    model_input = letterboxed.astype(np.float32) / 255.0
+    
+    # Transpose from HWC to CHW format
+    model_input = model_input.transpose((2, 0, 1))
+    
+    # Add batch dimension
+    model_input = np.expand_dims(model_input, axis=0)
+    
+    return letterboxed, model_input
+
+def preprocess_reid(input_image, target_size=256):
+    # Resize the image
+    resized_input = cv2.resize(input_image, (target_size, target_size))
+
+    # Convert to FP32
+    result_mat = resized_input.astype(np.float32)
+
+    # Convert from HWC to CHW (Channels, Height, Width)
+    chw_image = np.transpose(result_mat, (2, 0, 1))
+
+    # Add a batch dimension to convert to BCHW
+    bchw_image = np.expand_dims(chw_image, axis=0)
+    
+    return bchw_image
+
 def preprocess(image, target_size):
     image_resized = cv2.resize(image, (target_size, target_size))
     model_input = image.astype(np.float32)

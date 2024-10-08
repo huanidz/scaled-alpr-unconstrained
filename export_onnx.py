@@ -39,7 +39,7 @@ input_shape = (1, 3, args.size, args.size)  # (batch_size, channels, height, wid
 
 fused_model = FusedAlprModel(model)
 
-image = cv2.imread("/home/huan/Pictures/debug/35005211input.jpg")
+image = cv2.imread("./visual/augmented_image_0.jpg")
 image_resized, model_input = preprocess(image, args.size)
 
 # Export the model to ONNX format
