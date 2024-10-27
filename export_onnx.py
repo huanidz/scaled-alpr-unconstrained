@@ -39,7 +39,7 @@ input_shape = (1, 3, args.size, args.size)  # (batch_size, channels, height, wid
 
 fused_model = FusedAlprModel(model)
 
-image = cv2.imread("/home/huan/Pictures/debug/35005211input.jpg")
+image = cv2.imread("/home/huan/Pictures/test2.png")
 image_resized, model_input = preprocess(image, args.size)
 
 # Export the model to ONNX format
@@ -53,7 +53,8 @@ torch.onnx.export(
     opset_version=11,
     do_constant_folding=True,
     input_names=["input"],
-    output_names=["output"]
+    output_names=["output"],
+    verbose=True
 )
 
 print(f"Model exported to {output_path}")

@@ -19,7 +19,7 @@ class AlprModel(nn.Module):
         elif scale == 'large':
             res_block_scales = [32, 64, 128, 256]
         elif scale == 'small':
-            res_block_scales = [32, 32, 32, 64]
+            res_block_scales = [32, 32, 48, 64]
         elif scale == 'tiny':
             res_block_scales = [32, 32, 32, 32]
 

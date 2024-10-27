@@ -1,4 +1,5 @@
 from shapely.geometry import Polygon
+from shapely.validation import make_valid
 
 def polygon_area(poly):
     """
@@ -10,8 +11,9 @@ def intersection_area(poly1, poly2):
     """
     Calculate the intersection area between two polygons.
     """
-    poly1 = Polygon(poly1)
-    poly2 = Polygon(poly2)
+    poly1 = make_valid(Polygon(poly1))
+    poly2 = make_valid(Polygon(poly2))
+    
     return poly1.intersection(poly2).area
 
 def calculate_metrics(pred_poly, gt_poly):

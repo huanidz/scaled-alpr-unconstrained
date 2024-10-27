@@ -2,11 +2,13 @@ import os
 import torch
 import argparse
 from torch.utils.data import DataLoader
+import torch.cuda.amp as amp
 from components.losses.loss import AlprLoss
 from components.data.AlprData import AlprDataset
 from components.model.AlprModel import AlprModel
 from components.processes.TrainProcesses import evaluate
 from utils.util_func import count_parameters
+
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument("--data", help="Path to data folder", default="./train_data", required=True, type=str)
@@ -17,11 +19,15 @@ argparser.add_argument("--eval_after", help="Evaluate model after n epochs", def
 argparser.add_argument("--size", help="Size of input image", default=384, type=int)
 argparser.add_argument("--scale", help="Scale of the model (tiny, small, base, large)", default="base", type=str)
 argparser.add_argument("--resume_from", help="Resume from pth checkpoint (path)", default=None, type=str)
+argparser.add_argument("--save_float", help="Load and save model to fp32", action="store_true")
 args = argparser.parse_args()
 print(args)
 
+torch.set_float32_matmul_precision('high')
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model = AlprModel(scale=args.scale).to(device)
+# model = torch.compile(model)
 print(f'Alpr model has {count_parameters(model):,} trainable parameters')
 
 criteria = AlprLoss().to(device)
@@ -63,6 +69,18 @@ if args.resume_from:
     last_epoch = checkpoint['epoch']
     best_f1_score = checkpoint['best_f1_score']
     last_eval_epoch = last_epoch
+    
+    if args.save_float:
+        fp32_model = model.float()
+        torch.save({
+            'epoch': last_epoch,
+            'model_state_dict': fp32_model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'best_f1_score': best_f1_score
+        }, f"./checkpoints/{args.scale}_fp32_latest.pth")
+        print("Save model to fp32 done. Exit")
+        exit(0)
+    
     print(f"Checkpoint loaded. Resuming from epoch {last_epoch}...")
 else:
     last_epoch = 0
@@ -73,7 +91,7 @@ print("Start training..")
 for epoch in range(num_epochs):
     
     # Skipping epoch if resume
-    if args.resume_from and epoch == 0 and epoch < last_epoch:
+    if args.resume_from and epoch < last_epoch:
         continue
     
     print(f"Epoch {epoch + 1}/{num_epochs}")
@@ -86,9 +104,10 @@ for epoch in range(num_epochs):
         
         image = image.to(device)
         output_feature_map = output_feature_map.to(device)
-        probs, bbox = model(image)
-        concat_predict_output = torch.cat([probs, bbox], dim=1)
-        loss = criteria(concat_predict_output, output_feature_map)
+        with amp.autocast(dtype=torch.bfloat16):
+            probs, bbox = model(image)
+            concat_predict_output = torch.cat([probs, bbox], dim=1)
+            loss = criteria(concat_predict_output, output_feature_map)
         
         loss.backward()
         
@@ -101,7 +120,7 @@ for epoch in range(num_epochs):
             running_loss = 0.0
 
     # Eval
-    if (epoch - last_eval_epoch) % n_epochs_eval == 0:
+    if (epoch - last_eval_epoch) % n_epochs_eval == 0 and epoch != 0:
         print("Evaluating model...")
         train_mean_iou, train_mean_f1 = evaluate(model=model, dataloader=train_eval_loader, eval_threshold=0.5, device=device)
         print(f"[TRAIN] IoU: {train_mean_iou:.4f}, F1_Score: {train_mean_f1:.4f}")

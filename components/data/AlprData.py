@@ -52,12 +52,15 @@ class AlprDataset(Dataset):
         label[4:] *= H
         label = label.astype(np.int32)
         
-        
-        p1 = (label[0], label[4])
-        p2 = (label[1], label[5])
-        p3 = (label[2], label[6])
-        p4 = (label[3], label[7])
-
+        try:
+            p1 = (label[0], label[4])
+            p2 = (label[1], label[5])
+            p3 = (label[2], label[6])
+            p4 = (label[3], label[7])
+        except Exception as e:
+            print(f"==>> label: {label}")
+            raise ValueError(f"Error at label: {self.labels[index]}")
+            
 
         polygon = Polygon([p1, p2, p3, p4])
         polygons = PolygonsOnImage([polygon], shape=image.shape)

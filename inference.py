@@ -5,28 +5,32 @@ import numpy as np
 from components.model.AlprModel import AlprModel
 from components.processes.InferenceProcess import preprocess, reconstruct
 
+import torch.cuda.amp as amp
+from torch.cuda.amp import autocast
+
 import argparse
 from time import perf_counter
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_path", help="Path to model checkpoint (pth)", default=None, type=str)
 parser.add_argument("--size", help="Size of input image", default=384, type=int)
-parser.add_argument("--threshold", help="Detection threshold", default=0.5, type=float)
+parser.add_argument("--threshold", help="Detection threshold", default=0.7, type=float)
 parser.add_argument("--scale", help="Scale of the model (tiny, small, base, large)", default="base", type=str)
 args = parser.parse_args()
 
 # Default to CPU since it's fast enough to run a demo!
-device = torch.device("cpu")
+device = torch.device("cuda")
 
 model = AlprModel(scale=args.scale).to(device)
+# model = torch.compile(model)
 model.eval()
 
-try:
-    checkpoint = torch.load(args.model_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-except:
-    print("No model checkpoint found. please enter path to valid checkpoint...")
-    exit()
+# try:
+checkpoint = torch.load(args.model_path, map_location=device)
+model.load_state_dict(checkpoint['model_state_dict'])
+# except:
+#     print("No model checkpoint found. please enter path to valid checkpoint...")
+#     exit()
 
 # image = cv2.imread(args.image)
 image = cv2.imread(input("Enter image path: "))
@@ -36,6 +40,7 @@ print("Inference single image...")
 start_infer = perf_counter()
 
 resized, model_input = preprocess(image, args.size)
+model_input = model_input.to(device=device)
 with torch.no_grad():
     prob, bbox = model(model_input)
     
