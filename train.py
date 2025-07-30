@@ -2,7 +2,6 @@ import os
 import torch
 import argparse
 from torch.utils.data import DataLoader
-import torch.cuda.amp as amp
 from components.losses.loss import AlprLoss
 from components.data.AlprData import AlprDataset
 from components.model.AlprModel import AlprModel
@@ -63,7 +62,7 @@ if not os.path.exists("checkpoints"):
 
 if args.resume_from:
     load_path = args.resume_from
-    checkpoint = torch.load(load_path)
+    checkpoint = torch.load(load_path, weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     last_epoch = checkpoint['epoch']
@@ -104,7 +103,7 @@ for epoch in range(num_epochs):
         
         image = image.to(device)
         output_feature_map = output_feature_map.to(device)
-        with amp.autocast(dtype=torch.bfloat16):
+        with torch.amp.autocast('cuda', dtype=torch.bfloat16):
             probs, bbox = model(image)
             concat_predict_output = torch.cat([probs, bbox], dim=1)
             loss = criteria(concat_predict_output, output_feature_map)

@@ -16,7 +16,7 @@ args = parser.parse_args()
 model = AlprModel(scale=args.scale)
 
 # Load your PyTorch model
-checkpoints = torch.load(args.model_path)
+checkpoints = torch.load(args.model_path, weights_only=False)
 model.load_state_dict(checkpoints['model_state_dict'])
 print("loaded model state dict")
 
@@ -39,7 +39,7 @@ input_shape = (1, 3, args.size, args.size)  # (batch_size, channels, height, wid
 
 fused_model = FusedAlprModel(model)
 
-image = cv2.imread("/home/huan/Pictures/test2.png")
+image = cv2.imread("/home/huan/handover/wpod_new_data_converted/custom-japanese-license-plate-on-show-car_20250715.png")
 image_resized, model_input = preprocess(image, args.size)
 
 # Export the model to ONNX format
